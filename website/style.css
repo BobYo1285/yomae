@@ -49,13 +49,15 @@ body {
 }
 
 .mobile-nav .signup-btn {
-    background-color: var(--button-bg);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
+    background-color: white;
+    color: #121212;
+    border: 1px solid white;
     border-radius: 4px;
     padding: 8px 12px;
     text-decoration: none;
     font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
 /* Основной контент */
@@ -70,6 +72,7 @@ body {
     max-width: 400px;
     margin: 20px auto;
     padding: 0;
+    animation: fadeIn 0.3s ease-out;
 }
 
 .login-header {
@@ -107,13 +110,16 @@ body {
 .login-button {
     width: 100%;
     padding: 14px;
-    background-color: var(--button-bg);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
+    background-color: white;
+    color: #121212;
+    border: 1px solid white;
     border-radius: 4px;
     font-size: 16px;
     font-weight: 500;
     cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 16px;
+    position: relative;
 }
 
 .login-button:active {
@@ -168,12 +174,36 @@ body {
     margin-top: 16px;
 }
 
+/* Сообщения об ошибках и загрузка */
 .error-message {
     color: #ff4d4d;
-    margin-bottom: 10px;
+    margin: 10px 0;
     text-align: center;
     font-size: 14px;
-    animation: shake 0.5s;
+    animation: fadeIn 0.3s ease-out;
+    display: none;
+}
+
+.loading-container {
+    text-align: center;
+    margin: 16px 0;
+    animation: fadeIn 0.3s ease-out;
+}
+
+#loading-gif {
+    height: 20px;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+
+#button-text {
+    vertical-align: middle;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes shake {
@@ -181,8 +211,6 @@ body {
     20%, 60% { transform: translateX(-5px); }
     40%, 80% { transform: translateX(5px); }
 }
-
-
 
 /* Адаптация для очень маленьких экранов */
 @media (max-width: 360px) {
@@ -203,173 +231,10 @@ body {
     }
 }
 
-/* Анимации */
-@media (prefers-reduced-motion: no-preference) {
-    .login-container {
-        animation: fadeIn 0.3s ease-out;
+/* Отключение анимаций для пользователей с prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
     }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-}
-
-
-/* Добавьте эти стили в конец вашего CSS файла */
-
-/* Белые кнопки */
-.mobile-nav .signup-btn {
-    background-color: white;
-    color: #121212;
-    border: 1px solid white;
-    border-radius: 4px;
-    padding: 8px 12px;
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.login-button {
-    width: 100%;
-    padding: 14px;
-    background-color: white;
-    color: #121212;
-    border: 1px solid white;
-    border-radius: 4px;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-top: 16px;
-}
-
-.login-button:active {
-    opacity: 0.8;
-}
-
-/* Стили для сообщений об ошибках */
-.error-message {
-    color: #ff4d4d;
-    margin: 10px 0;
-    text-align: center;
-    font-size: 14px;
-    animation: fadeIn 0.3s ease-out;
-}
-
-.loading-container {
-    text-align: center;
-    margin: 16px 0;
-    animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Loading GIF styles */
-#loading-gif {
-    height: 20px;
-    vertical-align: middle;
-    margin-left: 8px;
-}
-
-/* Error message positioning */
-.error-message {
-    color: #ff4d4d;
-    margin: 10px 0;
-    text-align: center;
-    font-size: 14px;
-    animation: fadeIn 0.3s ease-out;
-    display: none;
-}
-
-/* Button with loading state */
-.login-button {
-    position: relative;
-}
-
-#button-text {
-    vertical-align: middle;
-}
-
-/* 2FA page specific styles */
-#2fa-form {
-    margin-top: 20px;
-}
-
-/* Shake animation for errors */
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    20%, 60% { transform: translateX(-5px); }
-    40%, 80% { transform: translateX(5px); }
-}
-/* Добавьте в конец файла style.css */
-
-.login-button {
-    position: relative;
-    transition: all 0.3s ease;
-}
-
-#button-text {
-    transition: all 0.3s ease;
-}
-
-#loading-gif {
-    height: 20px;
-    width: 20px;
-    vertical-align: middle;
-    margin-left: 8px;
-    display: none;
-}
-
-.login-button.loading {
-    background-color: #cccccc;
-    cursor: not-allowed;
-}
-
-.login-button.loading #button-text {
-    padding-right: 25px;
-}
-
-.login-button.loading #loading-gif {
-    display: inline-block;
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-}
-
-/* Loading animation styles */
-#loading-gif {
-    height: 20px;
-    width: 20px;
-    display: none;
-    vertical-align: middle;
-    margin-left: 8px;
-}
-
-.login-button.loading {
-    position: relative;
-    padding-right: 40px;
-}
-
-.login-button.loading #button-text {
-    opacity: 0.7;
-}
-
-.login-button.loading #loading-gif {
-    display: inline-block;
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: translateY(-50%) rotate(0deg); }
-    100% { transform: translateY(-50%) rotate(360deg); }
 }
