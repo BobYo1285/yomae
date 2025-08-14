@@ -16,11 +16,12 @@ from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
 import git
-from flask_cors import CORS
 import json
+# Добавьте в начало файла
+from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # Разрешаем все CORS запросы
+CORS(app)  # Разрешить CORS для всех доменов
 
 @app.after_request
 def after_request(response):
@@ -350,7 +351,8 @@ def health_check():
     """Проверка работоспособности сервиса"""
     return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()})
 
-# ЗАПУСК СЕРВЕРА
+
+# Измените запуск сервера в конце файла:
 if __name__ == '__main__':
     # Проверка переменных окружения
     required_env_vars = ['GITHUB_USERNAME', 'GITHUB_TOKEN']
