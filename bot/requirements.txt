@@ -3,3 +3,4 @@ selenium==4.10.0
 webdriver-manager==3.8.6
 gitpython==3.1.32
 flask-cors==3.0.10
+chromedriver-autoinstaller==1.0.0
