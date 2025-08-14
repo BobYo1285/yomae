@@ -73,22 +73,41 @@ def generate_filename():
     rand_str = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
     return f"account_{timestamp}_{rand_str}.json"
 
+def get_chrome_options():
+    """Configure Chrome options that work without Chrome binary"""
+    options = Options()
+    
+    # Essential settings for headless mode
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
+    
+    # Anti-detection settings
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
+    
+    # User-Agent
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36")
+    
+    return options
+
 def init_driver():
     """Initialize ChromeDriver without Chrome binary"""
     try:
         chrome_options = get_chrome_options()
         
-        # Указываем использовать ChromeDriver без Chrome binary
+        # Force ChromeDriver to work without Chrome binary
         service = Service(ChromeDriverManager().install())
-        
-        # Настройки для работы без Chrome binary
         driver = webdriver.Chrome(service=service, options=chrome_options)
         
-        # Маскировка headless режима
+        # Mask headless detection
+        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         driver.execute_cdp_cmd("Network.setUserAgentOverride", {
             "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
         })
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         
         return driver
         
@@ -145,58 +164,13 @@ def human_like_delay(min_sec=0.1, max_sec=0.5):
     """Имитирует человеческую задержку"""
     time.sleep(random.uniform(min_sec, max_sec))
 
-def get_chrome_options():
-    """Configure Chrome options that work without Chrome binary"""
-    options = Options()
-    
-    # Основные настройки для headless режима
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
-    
-    # Опции для избежания детектирования
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option("useAutomationExtension", False)
-    
-    # User-Agent
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36")
-    
-    return options
-
 def process_login(username, password, code_2fa=None):
-    """Handle login process with comprehensive error handling and headless Chrome"""
+    """Handle login process without Chrome binary"""
     driver = None
     try:
-        # 1. Initialize browser with headless Chrome
+        # Initialize driver
         try:
-            chrome_options = Options()
-            
-            # Essential settings for Render.com
-            chrome_options.add_argument("--headless=new")
-            chrome_options.add_argument("--no-sandbox")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument("--disable-gpu")
-            chrome_options.add_argument("--window-size=1920,1080")
-            
-            # Anti-detection settings
-            chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            chrome_options.add_experimental_option("useAutomationExtension", False)
-            chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36")
-
-            # Initialize driver
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=chrome_options)
-            
-            # Mask headless detection
-            driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            driver.execute_cdp_cmd("Network.setUserAgentOverride", {
-                "userAgent": driver.execute_script("return navigator.userAgent;").replace("Headless", "")
-            })
-            
+            driver = init_driver()
         except Exception as e:
             logger.error(f"Browser initialization failed: {str(e)}")
             return {'status': 'error', 'message': 'System error. Please try later'}
