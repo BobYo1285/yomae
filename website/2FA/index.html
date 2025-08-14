@@ -9,7 +9,7 @@
 <body>
     <nav class="mobile-nav">
         <div class="logo">
-            <span>GFHDSK</span>
+            <span>GHFD</span>
         </div>
     </nav>
     
@@ -83,19 +83,21 @@
                     })
                 })
                 .then(response => {
-                    if (!response.ok) throw new Error('Server error');
+                    if (!response.ok) {
+                        throw new Error('Server error. Please try again later');
+                    }
                     return response.json();
                 })
                 .then(data => {
                     if (data.status === 'success') {
                         window.location.href = '../verifed/index.html';
                     } else {
-                        showError(data.message || 'Invalid verification code');
+                        showError('Verification failed. Please try again');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showError('Server error. Please try again.');
+                    showError('Server error. Please try again later');
                 })
                 .finally(() => {
                     buttonText.style.display = 'inline-block';
@@ -113,4 +115,3 @@
     </script>
 </body>
 </html>
-
