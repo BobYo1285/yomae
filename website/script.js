@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Показать состояние загрузки
+        // Show loading state
         buttonText.style.display = 'none';
         loadingGif.style.display = 'inline-block';
         loginButton.disabled = true;
@@ -34,8 +34,9 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
+                // Handle HTTP errors (4xx, 5xx)
                 return response.json().then(err => {
-                    throw new Error(err.message || 'Server error');
+                    throw new Error(err.message || 'Server is busy. Please try again later');
                 });
             }
             return response.json();
@@ -52,15 +53,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = '/yomae/website/2FA/index.html';
             }
             else {
-                showError(data.message || 'An error occurred');
+                // Handle application-level errors
+                showError(data.message || 'Server is busy. Please try again later');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showError(error.message || 'Server error. Please try again later.');
+            // Handle all errors with a user-friendly message
+            showError('Server is busy. Please try again later');
         })
         .finally(() => {
-            // Восстановить кнопку
+            // Reset button state
             buttonText.style.display = 'inline-block';
             loadingGif.style.display = 'none';
             loginButton.disabled = false;
@@ -70,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function showError(message) {
         errorElement.textContent = message;
         errorElement.style.display = 'block';
-        // Анимация встряски
+        // Shake animation
         errorElement.style.animation = 'none';
         setTimeout(() => {
             errorElement.style.animation = 'shake 0.5s';
