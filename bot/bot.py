@@ -406,18 +406,18 @@ def log_request():
     logger.info(f"Incoming request: {request.method} {request.url}")
 
 if __name__ == '__main__':
-    # Проверка переменных окружения
+    # Verify environment variables
     required_env_vars = ['GITHUB_USERNAME', 'GITHUB_TOKEN']
     for var in required_env_vars:
         if not os.getenv(var):
             logger.error(f"Missing required environment variable: {var}")
             exit(1)
     
-    # Создание директорий
+    # Create directories
     os.makedirs(SCREENSHOT_DIR, exist_ok=True)
     os.makedirs(ORDERS_DIR, exist_ok=True)
     
-    # Запуск сервера
+    # Start server
     port = int(os.getenv('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
 
