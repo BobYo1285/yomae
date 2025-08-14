@@ -93,11 +93,29 @@ def install_chrome():
         logger.error(f"Chrome installation error: {str(e)}")
         return False
 def get_chrome_options():
-    """Возвращает настройки для Chrome"""
+    """Configure Chrome options for Selenium"""
     options = Options()
     
-    # Путь к Chrome в Docker образе
-    options.binary_location = "/usr/bin/google-chrome"
+    # Try to find Chrome binary
+    chrome_paths = [
+        os.path.join(os.getcwd(), "chrome", "google-chrome"),
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable"
+    ]
+    
+    for path in chrome_paths:
+        if os.path.exists(path):
+            options.binary_location = path
+            break
+    else:
+        # If Chrome not found, try to install portable version
+        installed_path = install_chrome()
+        if installed_path:
+            options.binary_location = installed_path
+        else:
+            raise RuntimeError("Failed to find or install Chrome")
+    
+    # Chrome configuration
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -402,4 +420,5 @@ if __name__ == '__main__':
     # Запуск сервера
     port = int(os.getenv('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
