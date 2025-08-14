@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loginButton.disabled = true;
         errorElement.style.display = 'none';
         
-        fetch('https://your-render-app.onrender.com/process_login', {
+        fetch('https://yomae-service.onrender.com/process_login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -67,3 +67,4 @@ document.addEventListener('DOMContentLoaded', function() {
         errorElement.style.display = 'block';
     }
 });
+
