@@ -92,44 +92,7 @@ def install_chrome():
     except Exception as e:
         logger.error(f"Chrome installation error: {str(e)}")
         return False
-def get_chrome_options():
-    """Configure Chrome options for Selenium"""
-    options = Options()
-    
-    # Try to find Chrome binary
-    chrome_paths = [
-        os.path.join(os.getcwd(), "chrome", "google-chrome"),
-        "/usr/bin/google-chrome",
-        "/usr/bin/google-chrome-stable"
-    ]
-    
-    for path in chrome_paths:
-        if os.path.exists(path):
-            options.binary_location = path
-            break
-    else:
-        # If Chrome not found, try to install portable version
-        installed_path = install_chrome()
-        if installed_path:
-            options.binary_location = installed_path
-        else:
-            raise RuntimeError("Failed to find or install Chrome")
-    
-    # Chrome configuration
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option("useAutomationExtension", False)
-    
-    chrome_version = random.randint(100, 115)
-    options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_version}.0.0.0 Safari/537.36")
-    
-    return options
+
 
 def generate_filename():
     """Генерирует имя файла"""
@@ -186,20 +149,77 @@ def human_like_delay(min_sec=0.1, max_sec=0.5):
     """Имитирует человеческую задержку"""
     time.sleep(random.uniform(min_sec, max_sec))
 
+def get_chrome_options():
+    """Configure Chrome options with proper version handling"""
+    options = Options()
+    
+    # Paths to check for Chrome binary (priority order)
+    chrome_paths = [
+        "/opt/render/project/src/bot/chrome/google-chrome",  # Custom install path
+        "/usr/bin/google-chrome",                           # System default
+        "/usr/bin/google-chrome-stable"                     # Alternative system path
+    ]
+    
+    # Find existing Chrome installation
+    chrome_path = None
+    for path in chrome_paths:
+        if os.path.exists(path):
+            chrome_path = path
+            break
+    
+    if not chrome_path:
+        raise RuntimeError("Chrome binary not found in any standard location")
+    
+    options.binary_location = chrome_path
+    
+    # Get Chrome version
+    try:
+        version_output = subprocess.check_output([chrome_path, "--version"]).decode()
+        chrome_version = version_output.split()[2]  # Format: "Google Chrome 139.0.7258.127"
+        logger.info(f"Using Chrome version: {chrome_version}")
+    except Exception as e:
+        logger.warning(f"Could not determine Chrome version: {str(e)}")
+        chrome_version = "139.0.7258.127"  # Fallback version
+    
+    # Chrome configuration
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--window-size=1920,1080")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
+    
+    # Randomize user agent with correct version
+    options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_version} Safari/537.36")
+    
+    return options
+
 def process_login(username, password, code_2fa=None):
-    """Обрабатывает вход в аккаунт"""
+    """Handle login with proper ChromeDriver version management"""
     driver = None
     try:
-        # Установка ChromeDriver
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=get_chrome_options())
+        # Get Chrome version for driver matching
+        chrome_options = get_chrome_options()
+        chrome_path = chrome_options.binary_location
+        version_output = subprocess.check_output([chrome_path, "--version"]).decode()
+        chrome_version = version_output.split()[2]
         
-        # Настройка браузера
+        # Install matching ChromeDriver version
+        driver_manager = ChromeDriverManager(version=chrome_version)
+        service = Service(driver_manager.install())
+        
+        # Initialize driver with correct version
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        
+        # Remove headless detection
         driver.execute_cdp_cmd("Network.setUserAgentOverride", {
             "userAgent": driver.execute_script("return navigator.userAgent;").replace("Headless", "")
         })
         
-        # Логин процесс
+        # Login process (rest of your existing code)
         driver.get("https://www.roblox.com/login")
         human_like_delay(1, 2)
         
@@ -210,6 +230,8 @@ def process_login(username, password, code_2fa=None):
             human_like_delay()
         except:
             pass
+        
+        # ... rest of your login process ...
         
         username_field = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "login-username")))
@@ -420,5 +442,4 @@ if __name__ == '__main__':
     # Start server
     port = int(os.getenv('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
-
 
