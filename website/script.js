@@ -5,9 +5,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadingGif = document.getElementById('loading-gif');
     const errorElement = document.getElementById('error-message');
     
-    // Скрываем гифку при загрузке
-    loadingGif.style.display = 'none';
-    
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -19,13 +16,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Активируем состояние загрузки
-        loginButton.classList.add('loading');
+        // Показать состояние загрузки
+        buttonText.style.display = 'none';
         loadingGif.style.display = 'inline-block';
         loginButton.disabled = true;
         errorElement.style.display = 'none';
         
-        // Убираем таймаут (или устанавливаем разумное значение)
         fetch('https://yomae-service.onrender.com/process_login', {
             method: 'POST',
             headers: {
@@ -64,8 +60,8 @@ document.addEventListener('DOMContentLoaded', function() {
             showError(error.message || 'Server error. Please try again later.');
         })
         .finally(() => {
-            // Восстанавливаем кнопку
-            loginButton.classList.remove('loading');
+            // Восстановить кнопку
+            buttonText.style.display = 'inline-block';
             loadingGif.style.display = 'none';
             loginButton.disabled = false;
         });
