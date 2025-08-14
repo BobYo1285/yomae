@@ -341,3 +341,35 @@ body {
     top: 50%;
     transform: translateY(-50%);
 }
+
+/* Loading animation styles */
+#loading-gif {
+    height: 20px;
+    width: 20px;
+    display: none;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+
+.login-button.loading {
+    position: relative;
+    padding-right: 40px;
+}
+
+.login-button.loading #button-text {
+    opacity: 0.7;
+}
+
+.login-button.loading #loading-gif {
+    display: inline-block;
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+}
