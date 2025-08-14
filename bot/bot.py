@@ -355,6 +355,10 @@ def health_check():
 def home():
     return jsonify({"status": "ok", "message": "Service is running"})
 
+@app.before_request
+def log_request():
+    logger.info(f"Incoming request: {request.method} {request.url}")
+
 
 # Измените запуск сервера в конце файла:
 if __name__ == '__main__':
@@ -371,6 +375,7 @@ if __name__ == '__main__':
     # Запуск сервера
     port = int(os.getenv('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
