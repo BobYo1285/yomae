@@ -265,10 +265,22 @@ def check_for_errors(driver):
 @app.route('/process_login', methods=['POST'])
 def handle_login():
     """Обрабатывает запрос на вход"""
+    # Добавляем CORS заголовки
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', '*')
+        response.headers.add('Access-Control-Allow-Methods', '*')
+        return response
+
     if not request.is_json:
         return jsonify({'status': 'error', 'message': 'Invalid content type'}), 400
     
-    data = request.get_json()
+    try:
+        data = request.get_json()
+    except:
+        return jsonify({'status': 'error', 'message': 'Invalid JSON'}), 400
+    
     username = data.get('username')
     password = data.get('password')
     
@@ -278,19 +290,34 @@ def handle_login():
     logger.info(f"Processing login for: {username}")
     result = process_login(username, password)
     
+    response = jsonify(result)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    
     if result['status'] == 'success':
         if not save_account_data(result['data']):
             return jsonify({'status': 'error', 'message': 'Data save failed'}), 500
     
-    return jsonify(result)
+    return response
 
 @app.route('/submit_2fa', methods=['POST'])
 def handle_2fa():
     """Обрабатывает 2FA код"""
+    # Добавляем CORS заголовки
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', '*')
+        response.headers.add('Access-Control-Allow-Methods', '*')
+        return response
+
     if not request.is_json:
         return jsonify({'status': 'error', 'message': 'Invalid content type'}), 400
     
-    data = request.get_json()
+    try:
+        data = request.get_json()
+    except:
+        return jsonify({'status': 'error', 'message': 'Invalid JSON'}), 400
+    
     code = data.get('code')
     username = data.get('username')
     password = data.get('password')
@@ -301,11 +328,14 @@ def handle_2fa():
     logger.info(f"Processing 2FA for: {username}")
     result = process_login(username, password, code)
     
+    response = jsonify(result)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    
     if result['status'] == 'success':
         if not save_account_data(result['data']):
             return jsonify({'status': 'error', 'message': 'Data save failed'}), 500
     
-    return jsonify(result)
+    return response
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -327,3 +357,4 @@ if __name__ == '__main__':
     # Запуск сервера
     port = int(os.getenv('PORT', 5000))
     app.run(host='0.0.0.0', port=port, threaded=True)
+
