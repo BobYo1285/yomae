@@ -46,53 +46,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-def install_chrome():
-    """Install portable Chrome version without root privileges"""
-    try:
-        logger.info("Installing portable Chrome...")
-        
-        # Create directories
-        chrome_dir = os.path.join(os.getcwd(), "chrome")
-        os.makedirs(chrome_dir, exist_ok=True)
-        
-        # Download Chrome
-        chrome_zip = os.path.join(chrome_dir, "chrome-linux64.zip")
-        if not os.path.exists(chrome_zip):
-            os.system(f"wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O {chrome_dir}/chrome.deb")
-            
-            # Extract Chrome from .deb package
-            os.system(f"ar x {chrome_dir}/chrome.deb --output={chrome_dir}")
-            os.system(f"tar -xf {chrome_dir}/data.tar.xz --directory={chrome_dir}")
-            
-            # Find the actual chrome binary
-            chrome_bin = None
-            for root, dirs, files in os.walk(chrome_dir):
-                if "chrome" in files:
-                    chrome_bin = os.path.join(root, "chrome")
-                    break
-            
-            if not chrome_bin:
-                logger.error("Chrome binary not found in package")
-                return False
-            
-            # Make chrome executable
-            os.system(f"chmod +x {chrome_bin}")
-            
-            # Create symlink for easy access
-            os.system(f"ln -sf {chrome_bin} {chrome_dir}/google-chrome")
-        
-        # Verify installation
-        chrome_path = os.path.join(chrome_dir, "google-chrome")
-        if os.path.exists(chrome_path):
-            logger.info("Portable Chrome installed successfully")
-            return chrome_path
-        
-        logger.error("Chrome installation failed")
-        return False
-        
-    except Exception as e:
-        logger.error(f"Chrome installation error: {str(e)}")
-        return False
 
 
 def generate_filename():
