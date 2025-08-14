@@ -40,6 +40,33 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def install_chrome():
+    """Установка Chrome если не обнаружен"""
+    try:
+        # Проверяем доступные пути
+        chrome_paths = [
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser"
+        ]
+        
+        if any(os.path.exists(path) for path in chrome_paths):
+            return True
+            
+        # Если Chrome не найден - устанавливаем
+        logger.info("Installing Google Chrome...")
+        os.system('apt-get update')
+        os.system('wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -')
+        os.system('echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list')
+        os.system('apt-get update')
+        os.system('apt-get install -y google-chrome-stable')
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to install Chrome: {str(e)}")
+        return False
+
 def generate_filename():
     """Генерирует имя файла"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -96,57 +123,51 @@ def human_like_delay(min_sec=0.1, max_sec=0.5):
     time.sleep(random.uniform(min_sec, max_sec))
 
 def get_chrome_options():
-    """Configure Chrome options with proper error handling"""
+    """Configure Chrome options with additional checks"""
     options = Options()
     
+    # Проверяем все возможные пути к Chrome
+    chrome_paths = [
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/local/bin/chrome",
+        "/opt/google/chrome/google-chrome"
+    ]
+    
+    chrome_path = None
+    for path in chrome_paths:
+        if os.path.exists(path):
+            chrome_path = path
+            logger.info(f"Found Chrome at: {chrome_path}")
+            break
+    
+    if not chrome_path:
+        raise Exception("Chrome browser not found. Please install Google Chrome first.")
+    
+    options.binary_location = chrome_path
+    
+    # Проверяем версию Chrome
     try:
-        # Проверяем доступные пути к Chrome
-        chrome_paths = [
-            "/usr/bin/google-chrome",
-            "/usr/bin/google-chrome-stable",
-            "/usr/bin/chromium",
-            "/usr/bin/chromium-browser"
-        ]
-        
-        chrome_path = None
-        for path in chrome_paths:
-            if os.path.exists(path):
-                chrome_path = path
-                break
-        
-        if not chrome_path:
-            raise Exception("Chrome browser not found in standard locations")
-        
-        options.binary_location = chrome_path
-        
-        # Получаем версию Chrome для логов
-        try:
-            version_output = subprocess.check_output([chrome_path, "--version"]).decode().strip()
-            logger.info(f"Using Chrome version: {version_output}")
-        except Exception as e:
-            logger.warning(f"Could not get Chrome version: {str(e)}")
-        
-        # Настройки для работы в Docker/headless режиме
-        options.add_argument("--headless=new")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--window-size=1920,1080")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-extensions")
-        options.add_argument("--disable-blink-features=AutomationControlled")
-        
-        # Опции для избежания детектирования автоматизации
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option("useAutomationExtension", False)
-        
-        # User-Agent
-        options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
-        
-        return options
-        
+        version = subprocess.check_output([chrome_path, "--version"]).decode().strip()
+        logger.info(f"Chrome version: {version}")
     except Exception as e:
-        logger.error(f"Failed to configure Chrome options: {str(e)}")
-        raise Exception("Browser configuration error")
+        logger.warning(f"Could not check Chrome version: {str(e)}")
+    
+    # Настройки для headless-режима
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
+    
+    # Опции для избежания детектирования
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
+    
+    return options
 
 def process_login(username, password, code_2fa=None):
     """Handle login process with comprehensive error handling"""
@@ -374,7 +395,26 @@ def handle_2fa():
             'message': 'Server error. Please try again later'
         }), 500
 
+@app.route('/check_chrome')
+def check_chrome():
+    try:
+        options = get_chrome_options()
+        return jsonify({
+            'status': 'success',
+            'chrome_path': options.binary_location,
+            'message': 'Chrome is properly configured'
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 if __name__ == '__main__':
+    if not install_chrome():
+        logger.error("Critical: Chrome installation failed")
+        exit(1)
+    
     # Verify environment variables
     required_env_vars = ['GITHUB_USERNAME', 'GITHUB_TOKEN']
     for var in required_env_vars:
