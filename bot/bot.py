@@ -16,10 +16,18 @@ from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
 import git
+from flask_cors import CORS
 import json
 
 app = Flask(__name__)
+CORS(app)  # Разрешаем все CORS запросы
 
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 # КОНФИГУРАЦИЯ
 ORDERS_REPO = f"https://github.com/{os.getenv('GITHUB_USERNAME')}/base.git"  # Замените на ваш репозиторий
@@ -357,4 +365,3 @@ if __name__ == '__main__':
     # Запуск сервера
     port = int(os.getenv('PORT', 5000))
     app.run(host='0.0.0.0', port=port, threaded=True)
-
