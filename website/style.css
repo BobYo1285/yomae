@@ -238,3 +238,14 @@ body {
         transition: none !important;
     }
 }
+.success-message {
+    text-align: center;
+    color: #4CAF50;
+    margin: 20px 0;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.success-message p {
+    margin: 10px 0;
+}
+
