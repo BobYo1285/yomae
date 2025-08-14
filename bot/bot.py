@@ -141,101 +141,25 @@ def get_chrome_options():
     return options
 
 def process_login(username, password, code_2fa=None):
-    """Handle login with version-matched ChromeDriver"""
     driver = None
     try:
-        # Получаем настройки Chrome
         chrome_options = get_chrome_options()
-        chrome_path = chrome_options.binary_location
         
-        # Получаем major версию Chrome (первое число)
+        # Установка ChromeDriver
         try:
-            version_output = subprocess.check_output([chrome_path, "--version"]).decode().strip()
-            chrome_version = version_output.split()[2]  # "119.0.6045.105"
+            chrome_version = subprocess.check_output([chrome_options.binary_location, "--version"]).decode().split()[2]
             major_version = chrome_version.split('.')[0]
-            logger.info(f"Using Chrome major version: {major_version}")
-        except Exception as e:
-            logger.error(f"Version detection failed: {str(e)}")
-            return {'status': 'critical_error', 'message': 'Chrome version detection failed'}
-        
-        # Устанавливаем соответствующий ChromeDriver
-        try:
             service = Service(ChromeDriverManager(version=major_version).install())
         except Exception as e:
-            logger.error(f"ChromeDriver install failed: {str(e)}")
-            return {'status': 'critical_error', 'message': 'ChromeDriver installation failed'}
-        
-        # Инициализируем драйвер
+            logger.error(f"ChromeDriver setup failed: {str(e)}")
+            return {'status': 'critical_error', 'message': 'Browser setup failed'}
+
         driver = webdriver.Chrome(service=service, options=chrome_options)
         
-        # Убираем Headless-детекцию
-        driver.execute_cdp_cmd("Network.setUserAgentOverride", {
-            "userAgent": driver.execute_script("return navigator.userAgent;").replace("Headless", "")
-        })
+        # Остальная часть вашей функции...
         
-        # Процесс логина (остается без изменений)
-        driver.get("https://www.roblox.com/login")
-        human_like_delay(1, 2)
-        
-        try:
-            cookie_btn = WebDriverWait(driver, 3).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Accept')]")))
-            cookie_btn.click()
-            human_like_delay()
-        except:
-            pass
-        
-        username_field = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, "login-username")))
-        username_field.send_keys(username)
-        human_like_delay()
-        
-        password_field = driver.find_element(By.ID, "login-password")
-        password_field.send_keys(password)
-        human_like_delay()
-        
-        login_btn = driver.find_element(By.ID, "login-button")
-        login_btn.click()
-        human_like_delay(1, 2)
-        
-        if code_2fa:
-            try:
-                code_field = WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.XPATH, "//input[@name='verificationCode']")))
-                code_field.send_keys(code_2fa)
-                human_like_delay()
-                
-                submit_btn = driver.find_element(By.XPATH, "//button[contains(., 'Verify')]")
-                submit_btn.click()
-                human_like_delay(2, 3)
-            except Exception as e:
-                return {'status': '2fa_error', 'message': f'2FA error: {str(e)}'}
-        
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'avatar-container')]")))
-            
-            account_data = {
-                'username': username,
-                'password': password,
-                'status': 'active',
-                'robux': get_robux_balance(driver),
-                'premium': check_premium_status(driver),
-                'cookie': driver.get_cookie('.ROBLOSECURITY')['value'] if driver.get_cookie('.ROBLOSECURITY') else None,
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            return {'status': 'success', 'data': account_data}
-            
-        except TimeoutException:
-            error_msg = check_for_errors(driver)
-            if error_msg:
-                return {'status': 'error', 'message': error_msg}
-            
-            return {'status': 'unknown_error', 'message': 'Unknown error'}
-            
     except Exception as e:
-        logger.error(f"Critical error: {str(e)}")
+        logger.error(f"Error: {str(e)}")
         return {'status': 'critical_error', 'message': str(e)}
     finally:
         if driver:
@@ -394,4 +318,5 @@ if __name__ == '__main__':
     # Start server
     port = int(os.getenv('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
