@@ -54,31 +54,50 @@ def install_chrome():
         os.system("apt-get update -y")
         os.system("apt-get install -y wget unzip")
         
-        # Скачивание и установка Chrome
-        os.system("wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb")
-        os.system("apt-get install -y ./google-chrome-stable_current_amd64.deb")
+        # Установка Chrome через официальный репозиторий
+        os.system("curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -")
+        os.system('echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list')
+        os.system("apt-get -y update")
+        os.system("apt-get -y install google-chrome-stable")
+        
+        # Альтернативный вариант установки
+        chrome_path = "/usr/bin/google-chrome"
+        if not os.path.exists(chrome_path):
+            os.system("wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb")
+            os.system("dpkg -i google-chrome-stable_current_amd64.deb")
+            os.system("apt --fix-broken install -y")
         
         # Проверка установки
         if os.path.exists("/usr/bin/google-chrome"):
-            logger.info("Chrome успешно установлен")
+            logger.info("Chrome successfully installed")
             return True
         else:
-            logger.error("Chrome не установился")
+            logger.error("Chrome installation failed")
             return False
     except Exception as e:
-        logger.error(f"Ошибка установки Chrome: {str(e)}")
+        logger.error(f"Chrome installation error: {str(e)}")
         return False
 
 def get_chrome_options():
     """Возвращает настройки для Chrome"""
     options = Options()
     
-    # Путь к Chrome на Render
-    chrome_path = "/usr/bin/google-chrome"
-    if os.path.exists(chrome_path):
-        options.binary_location = chrome_path
+    # Проверка нескольких возможных путей
+    chrome_paths = [
+        "/usr/bin/google-chrome",
+        "/usr/bin/google-chrome-stable",
+        "/usr/local/bin/chromium"
+    ]
+    
+    for path in chrome_paths:
+        if os.path.exists(path):
+            options.binary_location = path
+            break
     else:
-        logger.error("Chrome binary не найден!")
+        logger.error("Chrome binary not found! Trying to install...")
+        if not install_chrome():
+            raise Exception("Chrome installation failed")
+
     
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
@@ -389,5 +408,6 @@ if __name__ == '__main__':
     # Запуск сервера
     port = int(os.getenv('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
 
 
