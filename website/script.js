@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             else {
                 // Все ошибки от сервера преобразуем в общее сообщение
-                showError('Incorrect username or password. Please try again');
+                showError('Server error. Please try again later');
             }
         })
         .catch(error => {
@@ -81,3 +81,4 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 10);
     }
 });
+
