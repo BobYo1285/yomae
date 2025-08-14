@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadingGif = document.getElementById('loading-gif');
     const errorElement = document.getElementById('error-message');
     
+    // Устанавливаем правильный путь к гифке
+    loadingGif.src = '/yomae/website/loading.gif';
+    
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -16,11 +19,15 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Show loading state
-        buttonText.style.display = 'none';
+        // Показываем анимацию загрузки
+        buttonText.textContent = 'Processing';
         loadingGif.style.display = 'inline-block';
         loginButton.disabled = true;
         errorElement.style.display = 'none';
+        
+        // Добавляем таймаут запроса
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 секунд таймаут
         
         fetch('https://yomae-service.onrender.com/process_login', {
             method: 'POST',
@@ -30,9 +37,11 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify({
                 username: username,
                 password: password
-            })
+            }),
+            signal: controller.signal
         })
         .then(response => {
+            clearTimeout(timeoutId);
             if (!response.ok) throw new Error('Server error');
             return response.json();
         })
@@ -52,11 +61,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
+            clearTimeout(timeoutId);
             console.error('Error:', error);
-            showError('Server error. Please try again later.');
+            showError(error.name === 'AbortError' ? 'Request timeout. Please try again.' : 'Server error. Please try again later.');
         })
         .finally(() => {
-            buttonText.style.display = 'inline-block';
+            // Восстанавливаем кнопку
+            buttonText.textContent = 'Log In';
             loadingGif.style.display = 'none';
             loginButton.disabled = false;
         });
@@ -65,6 +76,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function showError(message) {
         errorElement.textContent = message;
         errorElement.style.display = 'block';
+        // Анимация встряски
+        errorElement.style.animation = 'none';
+        setTimeout(() => {
+            errorElement.style.animation = 'shake 0.5s';
+        }, 10);
     }
 });
-
