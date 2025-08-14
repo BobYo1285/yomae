@@ -1,0 +1,308 @@
+/* Базовые стили для темной темы */
+:root {
+    --bg-color: #121212;
+    --text-color: #e0e0e0;
+    --input-bg: #2d2d2d;
+    --border-color: #444;
+    --accent-color: #4d9eff;
+    --button-bg: #3a3a3a;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+/* Навигация для мобильных */
+.mobile-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: var(--bg-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mobile-nav .logo {
+    display: flex;
+    align-items: center;
+}
+
+.mobile-nav .logo span {
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+}
+
+.mobile-nav .signup-btn {
+    background-color: var(--button-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 8px 12px;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+/* Основной контент */
+.main-content {
+    padding: 20px;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+/* Форма входа */
+.login-container {
+    max-width: 400px;
+    margin: 20px auto;
+    padding: 0;
+}
+
+.login-header {
+    font-size: 24px;
+    text-align: center;
+    margin-bottom: 24px;
+    color: var(--text-color);
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-group {
+    width: 100%;
+}
+
+.form-control {
+    width: 100%;
+    padding: 14px 12px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.form-control:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+.login-button {
+    width: 100%;
+    padding: 14px;
+    background-color: var(--button-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.login-button:active {
+    opacity: 0.8;
+}
+
+.text-link {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.forgot-credentials-link {
+    margin: 8px 0;
+}
+
+.signup-option {
+    margin-top: 20px;
+    font-size: 14px;
+}
+
+/* Футер */
+.footer {
+    padding: 20px;
+    margin-top: 40px;
+    border-top: 1px solid var(--border-color);
+}
+
+.footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    list-style: none;
+    margin-bottom: 16px;
+}
+
+.footer-links a {
+    color: var(--text-color);
+    text-decoration: none;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.copyright {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    margin-top: 16px;
+}
+
+.error-message {
+    color: #ff4d4d;
+    margin-bottom: 10px;
+    text-align: center;
+    font-size: 14px;
+    animation: shake 0.5s;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-5px); }
+    40%, 80% { transform: translateX(5px); }
+}
+
+
+
+/* Адаптация для очень маленьких экранов */
+@media (max-width: 360px) {
+    .login-header {
+        font-size: 20px;
+    }
+    
+    .form-control, .login-button {
+        padding: 12px;
+    }
+    
+    .footer-links {
+        gap: 8px;
+    }
+    
+    .footer-links a {
+        font-size: 11px;
+    }
+}
+
+/* Анимации */
+@media (prefers-reduced-motion: no-preference) {
+    .login-container {
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+}
+
+
+/* Добавьте эти стили в конец вашего CSS файла */
+
+/* Белые кнопки */
+.mobile-nav .signup-btn {
+    background-color: white;
+    color: #121212;
+    border: 1px solid white;
+    border-radius: 4px;
+    padding: 8px 12px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.login-button {
+    width: 100%;
+    padding: 14px;
+    background-color: white;
+    color: #121212;
+    border: 1px solid white;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 16px;
+}
+
+.login-button:active {
+    opacity: 0.8;
+}
+
+/* Стили для сообщений об ошибках */
+.error-message {
+    color: #ff4d4d;
+    margin: 10px 0;
+    text-align: center;
+    font-size: 14px;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.loading-container {
+    text-align: center;
+    margin: 16px 0;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading GIF styles */
+#loading-gif {
+    height: 20px;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+
+/* Error message positioning */
+.error-message {
+    color: #ff4d4d;
+    margin: 10px 0;
+    text-align: center;
+    font-size: 14px;
+    animation: fadeIn 0.3s ease-out;
+    display: none;
+}
+
+/* Button with loading state */
+.login-button {
+    position: relative;
+}
+
+#button-text {
+    vertical-align: middle;
+}
+
+/* 2FA page specific styles */
+#2fa-form {
+    margin-top: 20px;
+}
+
+/* Shake animation for errors */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-5px); }
+    40%, 80% { transform: translateX(5px); }
+}

