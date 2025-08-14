@@ -306,3 +306,38 @@ body {
     20%, 60% { transform: translateX(-5px); }
     40%, 80% { transform: translateX(5px); }
 }
+/* Добавьте в конец файла style.css */
+
+.login-button {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+#button-text {
+    transition: all 0.3s ease;
+}
+
+#loading-gif {
+    height: 20px;
+    width: 20px;
+    vertical-align: middle;
+    margin-left: 8px;
+    display: none;
+}
+
+.login-button.loading {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.login-button.loading #button-text {
+    padding-right: 25px;
+}
+
+.login-button.loading #loading-gif {
+    display: inline-block;
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+}
