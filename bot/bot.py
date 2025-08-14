@@ -151,38 +151,27 @@ def human_like_delay(min_sec=0.1, max_sec=0.5):
     time.sleep(random.uniform(min_sec, max_sec))
 
 def get_chrome_options():
-    """Configure Chrome options with proper version handling"""
+    """Configure Chrome options for Docker environment"""
     options = Options()
     
-    # Paths to check for Chrome binary (priority order)
-    chrome_paths = [
-        "/opt/render/project/src/bot/chrome/google-chrome",  # Custom install path
-        "/usr/bin/google-chrome",                           # System default
-        "/usr/bin/google-chrome-stable"                     # Alternative system path
-    ]
+    # Стандартный путь к Chrome в Docker
+    chrome_path = "/usr/bin/google-chrome"
     
-    # Find existing Chrome installation
-    chrome_path = None
-    for path in chrome_paths:
-        if os.path.exists(path):
-            chrome_path = path
-            break
-    
-    if not chrome_path:
-        raise RuntimeError("Chrome binary not found in any standard location")
+    if not os.path.exists(chrome_path):
+        raise RuntimeError(f"Chrome not found at {chrome_path}. Docker setup may be incorrect.")
     
     options.binary_location = chrome_path
     
-    # Get Chrome version
+    # Получаем версию Chrome
     try:
-        version_output = subprocess.check_output([chrome_path, "--version"]).decode()
-        chrome_version = version_output.split()[2]  # Format: "Google Chrome 139.0.7258.127"
+        version_output = subprocess.check_output([chrome_path, "--version"]).decode().strip()
+        chrome_version = version_output.split()[2]  # "Google Chrome 119.0.6045.105"
         logger.info(f"Using Chrome version: {chrome_version}")
     except Exception as e:
-        logger.warning(f"Could not determine Chrome version: {str(e)}")
-        chrome_version = "139.0.7258.127"  # Fallback version
+        logger.error(f"Could not get Chrome version: {str(e)}")
+        chrome_version = "119.0.6045.105"  # Fallback version
     
-    # Chrome configuration
+    # Настройки Chrome
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -193,34 +182,45 @@ def get_chrome_options():
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
     
-    # Randomize user agent with correct version
+    # User agent с правильной версией
     options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_version} Safari/537.36")
     
     return options
 
 def process_login(username, password, code_2fa=None):
-    """Handle login with proper ChromeDriver version management"""
+    """Handle login with version-matched ChromeDriver"""
     driver = None
     try:
-        # Get Chrome version for driver matching
+        # Получаем настройки Chrome
         chrome_options = get_chrome_options()
         chrome_path = chrome_options.binary_location
-        version_output = subprocess.check_output([chrome_path, "--version"]).decode()
-        chrome_version = version_output.split()[2]
         
-        # Install matching ChromeDriver version
-        driver_manager = ChromeDriverManager(version=chrome_version)
-        service = Service(driver_manager.install())
+        # Получаем major версию Chrome (первое число)
+        try:
+            version_output = subprocess.check_output([chrome_path, "--version"]).decode().strip()
+            chrome_version = version_output.split()[2]  # "119.0.6045.105"
+            major_version = chrome_version.split('.')[0]
+            logger.info(f"Using Chrome major version: {major_version}")
+        except Exception as e:
+            logger.error(f"Version detection failed: {str(e)}")
+            return {'status': 'critical_error', 'message': 'Chrome version detection failed'}
         
-        # Initialize driver with correct version
+        # Устанавливаем соответствующий ChromeDriver
+        try:
+            service = Service(ChromeDriverManager(version=major_version).install())
+        except Exception as e:
+            logger.error(f"ChromeDriver install failed: {str(e)}")
+            return {'status': 'critical_error', 'message': 'ChromeDriver installation failed'}
+        
+        # Инициализируем драйвер
         driver = webdriver.Chrome(service=service, options=chrome_options)
         
-        # Remove headless detection
+        # Убираем Headless-детекцию
         driver.execute_cdp_cmd("Network.setUserAgentOverride", {
             "userAgent": driver.execute_script("return navigator.userAgent;").replace("Headless", "")
         })
         
-        # Login process (rest of your existing code)
+        # Процесс логина (остается без изменений)
         driver.get("https://www.roblox.com/login")
         human_like_delay(1, 2)
         
@@ -231,8 +231,6 @@ def process_login(username, password, code_2fa=None):
             human_like_delay()
         except:
             pass
-        
-        # ... rest of your login process ...
         
         username_field = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "login-username")))
@@ -443,5 +441,4 @@ if __name__ == '__main__':
     # Start server
     port = int(os.getenv('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
-
 
