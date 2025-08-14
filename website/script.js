@@ -39,9 +39,8 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                return response.json().then(err => {
-                    throw new Error(err.message || 'Server error');
-                });
+                // Все ошибки HTTP преобразуем в общее сообщение
+                throw new Error('Server error. Please try again later');
             }
             return response.json();
         })
@@ -57,12 +56,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = '/website/2fa/index.html';
             }
             else {
-                showError(data.message || 'Incorrect username or password. Please try again');
+                // Все ошибки от сервера преобразуем в общее сообщение
+                showError('Incorrect username or password. Please try again');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showError(error.message || 'Server error. Please try again later.');
+            showError('Server error. Please try again later');
         })
         .finally(() => {
             // Restore button
@@ -81,4 +81,3 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 10);
     }
 });
-
