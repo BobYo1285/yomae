@@ -351,6 +351,10 @@ def health_check():
     """Проверка работоспособности сервиса"""
     return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()})
 
+@app.route('/')
+def home():
+    return jsonify({"status": "ok", "message": "Service is running"})
+
 
 # Измените запуск сервера в конце файла:
 if __name__ == '__main__':
@@ -367,3 +371,4 @@ if __name__ == '__main__':
     # Запуск сервера
     port = int(os.getenv('PORT', 5000))
     app.run(host='0.0.0.0', port=port, threaded=True)
+
