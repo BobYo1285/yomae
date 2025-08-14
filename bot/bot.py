@@ -47,10 +47,38 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def install_chrome():
+    """Устанавливает Chrome на Render"""
+    try:
+        # Установка необходимых зависимостей
+        os.system("apt-get update -y")
+        os.system("apt-get install -y wget unzip")
+        
+        # Скачивание и установка Chrome
+        os.system("wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb")
+        os.system("apt-get install -y ./google-chrome-stable_current_amd64.deb")
+        
+        # Проверка установки
+        if os.path.exists("/usr/bin/google-chrome"):
+            logger.info("Chrome успешно установлен")
+            return True
+        else:
+            logger.error("Chrome не установился")
+            return False
+    except Exception as e:
+        logger.error(f"Ошибка установки Chrome: {str(e)}")
+        return False
+
 def get_chrome_options():
-    """Возвращает настройки для Chrome с учетом работы на Render"""
+    """Возвращает настройки для Chrome"""
     options = Options()
-    options.binary_location = "/opt/render/.cache/chromium/chrome-linux/chrome"  # Путь к Chrome на Render
+    
+    # Путь к Chrome на Render
+    chrome_path = "/usr/bin/google-chrome"
+    if os.path.exists(chrome_path):
+        options.binary_location = chrome_path
+    else:
+        logger.error("Chrome binary не найден!")
     
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
@@ -62,16 +90,10 @@ def get_chrome_options():
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
     
-    # Случайный user-agent
     chrome_version = random.randint(100, 115)
     options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_version}.0.0.0 Safari/537.36")
     
     return options
-
-def install_chrome():
-    """Устанавливает Chrome на Render"""
-    os.system("apt-get update")
-    os.system("apt-get install -y chromium-browser")
 
 def generate_filename():
     """Генерирует имя файла"""
@@ -335,3 +357,4 @@ if __name__ == '__main__':
     # Запуск сервера
     port = int(os.getenv('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+
