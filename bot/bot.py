@@ -123,70 +123,46 @@ def human_like_delay(min_sec=0.1, max_sec=0.5):
     time.sleep(random.uniform(min_sec, max_sec))
 
 def get_chrome_options():
-    """Configure Chrome options with additional checks"""
+    """Configure Chrome options for Render.com without system Chrome"""
     options = Options()
     
-    # Проверяем все возможные пути к Chrome
-    chrome_paths = [
-        "/usr/bin/google-chrome",
-        "/usr/bin/google-chrome-stable",
-        "/usr/bin/chromium",
-        "/usr/bin/chromium-browser",
-        "/usr/local/bin/chrome",
-        "/opt/google/chrome/google-chrome"
-    ]
-    
-    chrome_path = None
-    for path in chrome_paths:
-        if os.path.exists(path):
-            chrome_path = path
-            logger.info(f"Found Chrome at: {chrome_path}")
-            break
-    
-    if not chrome_path:
-        raise Exception("Chrome browser not found. Please install Google Chrome first.")
-    
-    options.binary_location = chrome_path
-    
-    # Проверяем версию Chrome
-    try:
-        version = subprocess.check_output([chrome_path, "--version"]).decode().strip()
-        logger.info(f"Chrome version: {version}")
-    except Exception as e:
-        logger.warning(f"Could not check Chrome version: {str(e)}")
-    
-    # Настройки для headless-режима
+    # Основные настройки для headless режима
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
     
-    # Опции для избежания детектирования
+    # Опции для избежания детектирования автоматизации
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
     
+    # User-Agent для маскировки
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36")
+    
+    # Дополнительные настройки для стабильности
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-notifications")
+    options.add_argument("--log-level=3")
+    
     return options
 
 def process_login(username, password, code_2fa=None):
-    """Handle login process with comprehensive error handling"""
+    """Handle login process for Render.com"""
     driver = None
     try:
-        # 1. Initialize browser
+        # Инициализация драйвера
         try:
             chrome_options = get_chrome_options()
             service = Service(ChromeDriverManager().install())
             driver = webdriver.Chrome(service=service, options=chrome_options)
             
-            # Mask headless detection
-            driver.execute_cdp_cmd("Network.setUserAgentOverride", {
-                "userAgent": driver.execute_script("return navigator.userAgent;").replace("Headless", "")
-            })
+            # Маскировка headless режима
+            driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         except Exception as e:
-            logger.error(f"Browser initialization failed: {str(e)}")
+            logger.error(f"Driver initialization failed: {str(e)}")
             return {'status': 'error', 'message': 'System error. Please try later'}
-        
         # 2. Navigate to login page
         try:
             driver.get("https://www.roblox.com/login")
@@ -286,6 +262,7 @@ def process_login(username, password, code_2fa=None):
                 driver.quit()
             except Exception as e:
                 logger.warning(f"Failed to properly close browser: {str(e)}")
+                pass
 
 def check_for_errors(driver):
     """Check page for known error messages"""
