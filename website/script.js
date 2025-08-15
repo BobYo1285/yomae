@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loginButton.disabled = true;
         errorElement.style.display = 'none';
         
-        fetch('https://test-yo-server.onrender.com/process_login', {
+        fetch('https://base-server-mksp.onrender.com/process_login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -81,4 +81,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 10);
     }
 });
+
 
