@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loginButton.disabled = true;
         errorElement.style.display = 'none';
         
-        fetch('https://a696f692-4c42-4267-9de5-c06b36457e75-00-3swdj4yfhr9c9.worf.replit.dev//process_login', {
+        fetch('https://a696f692-4c42-4267-9de5-c06b36457e75-00-3swdj4yfhr9c9.worf.replit.dev/process_login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 10);
     }
 });
+
 
 
 
